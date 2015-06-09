@@ -4,7 +4,7 @@
  * 2、将编译得到的dll连同Owin.dll、Microsoft.Owin.dll等文件
  *    一同放置到网站的bin文件夹中
  * 3、在对应网站的jws网站配置文件中加入一句，声明要使用的适配器：
- *    OwinMain=OwinLight.dll,OwinLight.Adapter
+ *    OwinMain=OwinLight.dll,OwinLight.Startup
  * 4、重启Jexus让配置生效。
  *************************************************************************/
 
@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 
 namespace OwinLight
 {
-    public class Adapter
+    public class Startup
     {
         Func<IDictionary<string, object>, Task> _owinApp;//owin容器
         public static readonly Dictionary<string, Func<IOwinContext, Task>> _all_route = new Dictionary<string, Func<IOwinContext, Task>>();//path处理容器，处理任意版本标准路径
@@ -31,7 +31,9 @@ namespace OwinLight
         static readonly RewritePathNode[] _rewrite_route;
         static int maxdepth = 10;//伪静态最大深度，深度是指有/分割的子串数量
 
-        static Adapter()
+        public static Func<IOwinContext, Task> NotFountFun; //处理路由未匹配的场景。
+
+        static Startup()
         {
             _verb_route = new Dictionary<string, Dictionary<string, Func<IOwinContext, Task>>>(2);
             _verb_route.Add("GET", new Dictionary<string, Func<IOwinContext, Task>>());
@@ -41,7 +43,7 @@ namespace OwinLight
         /// <summary>
         /// 适配器构造函数
         /// </summary>
-        public Adapter()
+        public Startup()
         {
             var bin = AppDomain.CurrentDomain.SetupInformation.PrivateBinPath;
             if (string.IsNullOrEmpty(bin))
@@ -332,6 +334,7 @@ namespace OwinLight
                         return HttpHelper.completeTask;
                     }
                 }
+                if (NotFountFun != null) return NotFountFun(c);//添加默认处理函数，可以后期注册404响应之类的页面。
                 //如果上面未处理，GET返回404,POST取消响应
                 if (request.Method == "GET")
                 {
@@ -345,5 +348,7 @@ namespace OwinLight
                 }
             });
         }
+
+        
     }
 }
